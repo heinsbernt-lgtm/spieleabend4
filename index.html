@@ -1012,6 +1012,7 @@
       <div style="color: #ef4444;" id="hockey-score-guest">0</div>
     </div>
     <div style="position: relative; width: 100%; max-width: 50vh; aspect-ratio: 2/3; margin: 0 auto;">
+      <div id="hockey-ping" style="position:absolute; top:-25px; right:0; font-family:monospace; font-size:0.8rem; color:rgba(255,255,255,0.5);">Ping: -- ms</div>
       <canvas id="hockey-canvas" width="400" height="600" style="width: 100%; height: 100%; border: 4px solid #fff; border-radius: 12px; background: #111; box-shadow: 0 0 20px rgba(0,255,255,0.2); touch-action: none; cursor: crosshair; display: block;"></canvas>
       <div id="hockey-setup" class="win-overlay" style="position:absolute; inset:0; background:rgba(0,0,0,0.8); border-radius:12px; z-index:10; display:flex;">
         <div class="win-card" style="padding: 2rem;">
@@ -3723,6 +3724,8 @@ let hockeyLastTick = Date.now();
 let hockeyGoalText = 0;
 let hockeyWinner = null;
 let hockeyGuestHitTime = 0;
+let hockeyOppEchoTs = 0;
+let hockeyPing = 0;
 
 function initHockey() {
   document.getElementById('hockey-setup').style.display = 'flex';
@@ -3867,9 +3870,9 @@ function hockeyTick() {
     
     if (now - hockeyLastSync > 100) {
       if (G.role === 'host') {
-        send({ t: 'hockey_sync', px: hockeyPuck.x, py: hockeyPuck.y, vx: hockeyPuck.vx, vy: hockeyPuck.vy, mx: hockeyMyPos.x, my: hockeyMyPos.y, score: hockeyScore });
+        send({ t: 'hockey_sync', ts: now, echoTs: hockeyOppEchoTs, px: hockeyPuck.x, py: hockeyPuck.y, vx: hockeyPuck.vx, vy: hockeyPuck.vy, mx: hockeyMyPos.x, my: hockeyMyPos.y, score: hockeyScore });
       } else {
-        send({ t: 'hockey_sync_guest', mx: hockeyMyPos.x, my: hockeyMyPos.y });
+        send({ t: 'hockey_sync_guest', ts: now, echoTs: hockeyOppEchoTs, mx: hockeyMyPos.x, my: hockeyMyPos.y });
       }
       hockeyLastSync = now;
     }
@@ -3955,6 +3958,14 @@ function handleHockeyMsg(msg) {
   }
   else if (msg.t === 'hockey_sync') {
     if (G.role === 'guest') {
+      hockeyOppEchoTs = msg.ts;
+      if (msg.echoTs) {
+        hockeyPing = Math.round((Date.now() - msg.echoTs) / 2);
+        const pColor = hockeyPing < 50 ? '#4ade80' : hockeyPing < 100 ? '#facc15' : '#ef4444';
+        const pEl = document.getElementById('hockey-ping');
+        pEl.textContent = `Ping: ${hockeyPing} ms`;
+        pEl.style.color = pColor;
+      }
       if (Date.now() - hockeyGuestHitTime > 300) {
         const dist = Math.hypot(hockeyPuck.x - msg.px, hockeyPuck.y - msg.py);
         if (msg.vx === 0 && msg.vy === 0 && dist < 50) {
@@ -3983,6 +3994,14 @@ function handleHockeyMsg(msg) {
   }
   else if (msg.t === 'hockey_sync_guest') {
     if (G.role === 'host') {
+      hockeyOppEchoTs = msg.ts;
+      if (msg.echoTs) {
+        hockeyPing = Math.round((Date.now() - msg.echoTs) / 2);
+        const pColor = hockeyPing < 50 ? '#4ade80' : hockeyPing < 100 ? '#facc15' : '#ef4444';
+        const pEl = document.getElementById('hockey-ping');
+        pEl.textContent = `Ping: ${hockeyPing} ms`;
+        pEl.style.color = pColor;
+      }
       hockeyOppTarget.x = msg.mx;
       hockeyOppTarget.y = msg.my;
     }
